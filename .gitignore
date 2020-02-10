@@ -1,0 +1,7 @@
+venv/
+.DS_Store
+.idea/
+__pycache__/
+
+gantt_rr.png
+gantt_srtf.png
