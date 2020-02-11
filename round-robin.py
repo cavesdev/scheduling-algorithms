@@ -1,8 +1,35 @@
 import matplotlib.pyplot as plt
 import tkinter as tk
 import random
+
+from tkinter.font import Font
 from PIL import ImageTk, Image
 from models.process import Process
+
+
+def add_waiting_times(actual_process, time, process_list):
+    for process in process_list:
+        if process is actual_process:
+            continue
+        process.add_waiting_time(time)
+
+
+def get_waiting_times_text(process_list, n):
+    waiting_text = 'PROCESO\t ESPERA\n'
+    avg = 0
+    for process in set(process_list):
+        waiting_text += f'P{process.number}\t {process.get_waiting_time()}\n'
+        avg += process.get_waiting_time()
+    waiting_text += f'PROMEDIO = {format(avg / n, ".2f")}'
+    return waiting_text
+
+
+def get_random_color():
+    red = random.random()
+    green = random.random()
+    blue = random.random()
+    alpha = 1.0
+    return red, green, blue, alpha
 
 
 class RoundRobin:
@@ -37,23 +64,20 @@ class RoundRobin:
         return sum
 
     def run(self):
+        unfinished_process_list = self.process_list.copy()
         for process in self.process_list:
             if process.get_remaining_time() > self.quantum:
                 process.reduce_duration(self.quantum)
                 process.add_processing_time(begin=self.passed_time, duration=self.quantum)
                 self.process_list.append(process)
                 self.passed_time += self.quantum
-                self.add_waiting_times(actual_process=process, time=self.quantum)
+                add_waiting_times(actual_process=process, time=self.quantum, process_list=unfinished_process_list)
             else:
                 process.add_processing_time(begin=self.passed_time, duration=process.get_remaining_time())
                 self.passed_time += process.get_remaining_time()
-                self.add_waiting_times(actual_process=process, time=process.get_remaining_time())
-
-    def add_waiting_times(self, actual_process, time):
-        for process in self.process_list:
-            if process is actual_process:
-                continue
-            process.add_waiting_time(time)
+                unfinished_process_list.remove(process)
+                add_waiting_times(actual_process=process, time=process.get_remaining_time(),
+                                  process_list=unfinished_process_list)
 
     def graph(self):
         self.gnt.set_ylim(0, 50)
@@ -71,34 +95,23 @@ class RoundRobin:
         plt.savefig('gantt_rr.png')
 
     def show(self):
+        font = Font(family='Helvetica', size=20)
+
         # add graph at East
         img = ImageTk.PhotoImage(Image.open('gantt_rr.png'))
         img_panel = tk.Label(self.window, image=img)
         img_panel.grid(column=1, row=0)
 
         # add process times at West
-        label = tk.Label(self.window, text=self.process_text)
+        label = tk.Label(self.window, text=self.process_text, font=font)
         label.grid(column=0, row=0)
 
         # add waiting times at SE
-        label = tk.Label(self.window, text=self.get_waiting_times_text())
+        text = get_waiting_times_text(self.process_list, self.process_number)
+        label = tk.Label(self.window, text=text, font=font)
         label.grid(column=1, row=1)
 
         self.window.mainloop()
-
-    def get_waiting_times_text(self):
-        waiting_text = 'PROCESO\t ESPERA\n'
-        for process in set(self.process_list):
-            waiting_text += f'P{process.number}\t {process.get_waiting_time()}\n'
-        return waiting_text
-
-
-def get_random_color():
-    red = random.random()
-    green = random.random()
-    blue = random.random()
-    alpha = 1.0
-    return (red, green, blue, alpha)
 
 
 if __name__ == "__main__":
